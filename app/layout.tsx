@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -23,19 +23,20 @@ export const metadata: Metadata = {
 		statusBarStyle: "default",
 		title: "Habits",
 	},
-	viewport: {
-		width: "device-width",
-		initialScale: 1,
-		maximumScale: 1,
-		userScalable: false,
-	},
-	themeColor: "#000000",
 	other: {
 		"mobile-web-app-capable": "yes",
 		"apple-mobile-web-app-capable": "yes",
 		"apple-mobile-web-app-status-bar-style": "default",
 		"apple-mobile-web-app-title": "Habits",
 	},
+};
+
+export const viewport: Viewport = {
+	width: "device-width",
+	initialScale: 1,
+	maximumScale: 1,
+	userScalable: false,
+	themeColor: "#000000",
 };
 
 export default function RootLayout({
