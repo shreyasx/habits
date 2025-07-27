@@ -1,0 +1,46 @@
+{
+	"name": "Habits - Simple Habit Tracker",
+	"short_name": "Habits",
+	"description": "A simple and effective habit tracking app",
+	"start_url": "/",
+	"display": "standalone",
+	"background_color": "#000000",
+	"theme_color": "#000000",
+	"orientation": "portrait-primary",
+	"scope": "/",
+	"lang": "en",
+	"categories": ["productivity", "lifestyle", "health"],
+	"icons": [
+		{
+			"src": "/icon-192x192.png",
+			"sizes": "192x192",
+			"type": "image/png",
+			"purpose": "maskable any"
+		},
+		{
+			"src": "/icon-512x512.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "maskable any"
+		},
+		{
+			"src": "/apple-touch-icon.png",
+			"sizes": "180x180",
+			"type": "image/png"
+		}
+	],
+	"shortcuts": [
+		{
+			"name": "Add Habit",
+			"short_name": "Add",
+			"description": "Quickly add a new habit",
+			"url": "/?action=add",
+			"icons": [
+				{
+					"src": "/icon-192x192.png",
+					"sizes": "192x192"
+				}
+			]
+		}
+	]
+}

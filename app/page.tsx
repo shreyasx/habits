@@ -2,6 +2,7 @@
 
 import { Header } from "@/components/header";
 import { HabitList } from "@/components/habit-list";
+import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 import { useUser, SignInButton, SignUpButton } from "@clerk/nextjs";
 
 export default function Home() {
@@ -55,6 +56,7 @@ export default function Home() {
 			<main className="px-4 pt-20 pb-4 pr-0">
 				<HabitList />
 			</main>
+			<PWAInstallPrompt />
 		</div>
 	);
 }
