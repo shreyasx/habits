@@ -88,12 +88,12 @@ export function HabitList() {
 		setHabitToEdit(null);
 	};
 
-	// Generate dates for the last 30 days
+	// Generate dates for the last 14 days
 	const today = new Date();
-	const thirtyDaysAgo = subDays(today, 29); // 29 days back to include today (30 days total)
+	const fourteenDaysAgo = subDays(today, 13); // 13 days back to include today (14 days total)
 	const dates = useMemo(() => {
 		const dateArray = [];
-		let currentDate = thirtyDaysAgo;
+		let currentDate = fourteenDaysAgo;
 		while (currentDate <= today) {
 			dateArray.push(startOfDay(currentDate));
 			currentDate = addDays(currentDate, 1);

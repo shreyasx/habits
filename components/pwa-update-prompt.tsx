@@ -159,14 +159,16 @@ export function PWAUpdatePrompt({ onUpdate }: PWAUpdatePromptProps) {
 							Later
 						</Button>
 					</div>
-					<Button
-						variant="ghost"
-						size="sm"
-						onClick={checkForUpdates}
-						className="w-full"
-					>
-						Check for Updates
-					</Button>
+					{process.env.NODE_ENV !== "production" && (
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={checkForUpdates}
+							className="w-full"
+						>
+							Check for Updates
+						</Button>
+					)}
 				</CardContent>
 			</Card>
 		</div>

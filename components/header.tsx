@@ -61,13 +61,15 @@ export function Header() {
 						<button className="p-2 rounded-md hover:bg-gray-800 text-gray-400 hover:text-white">
 							{getCloudIcon()}
 						</button>
-						<button
-							onClick={checkForUpdates}
-							className="p-2 rounded-md hover:bg-gray-800 text-gray-400 hover:text-white"
-							title="Check for updates"
-						>
-							<RefreshCw className="h-5 w-5" />
-						</button>
+						{process.env.NODE_ENV !== "production" && (
+							<button
+								onClick={checkForUpdates}
+								className="p-2 rounded-md hover:bg-gray-800 text-gray-400 hover:text-white"
+								title="Check for updates"
+							>
+								<RefreshCw className="h-5 w-5" />
+							</button>
+						)}
 						<button
 							onClick={() => setIsModalOpen(true)}
 							className="p-2 rounded-md hover:bg-gray-800 text-gray-400 hover:text-white"
