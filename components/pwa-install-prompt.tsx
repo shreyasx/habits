@@ -19,14 +19,38 @@ export function PWAInstallPrompt() {
 	const [isInstalled, setIsInstalled] = useState(false);
 
 	useEffect(() => {
+		console.log("PWA Install Prompt: Component mounted");
+		
 		// Check if app is already installed
 		if (window.matchMedia("(display-mode: standalone)").matches) {
+			console.log("PWA Install Prompt: App is already installed");
 			setIsInstalled(true);
 			return;
 		}
 
+		// Check if service worker is registered
+		if ('serviceWorker' in navigator) {
+			navigator.serviceWorker.getRegistration().then(registration => {
+				console.log("PWA Install Prompt: Service Worker registration:", registration);
+			});
+		}
+
+		// Check if manifest is accessible
+		fetch('/manifest.json')
+			.then(response => {
+				console.log("PWA Install Prompt: Manifest accessible:", response.ok);
+				return response.json();
+			})
+			.then(manifest => {
+				console.log("PWA Install Prompt: Manifest content:", manifest);
+			})
+			.catch(error => {
+				console.error("PWA Install Prompt: Manifest error:", error);
+			});
+
 		// Listen for the beforeinstallprompt event
 		const handleBeforeInstallPrompt = (e: Event) => {
+			console.log("PWA Install Prompt: beforeinstallprompt event fired");
 			e.preventDefault();
 			setDeferredPrompt(e as BeforeInstallPromptEvent);
 			setShowInstallPrompt(true);
@@ -34,12 +58,15 @@ export function PWAInstallPrompt() {
 
 		// Listen for app installed event
 		const handleAppInstalled = () => {
+			console.log("PWA Install Prompt: App installed event fired");
 			setIsInstalled(true);
 			setShowInstallPrompt(false);
 		};
 
 		window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
 		window.addEventListener("appinstalled", handleAppInstalled);
+
+		console.log("PWA Install Prompt: Event listeners added");
 
 		return () => {
 			window.removeEventListener(
