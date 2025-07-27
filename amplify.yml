@@ -8,6 +8,16 @@ frontend:
         - yarn install
     build:
       commands:
+        - echo "=== Environment Variables Debug ==="
+        - env | grep -i clerk || echo "No CLERK variables found"
+        - env | grep -i database || echo "No DATABASE variables found"
+        - echo "=== Creating .env.production ==="
+        - env | grep -e CLERK_SECRET_KEY -e CLERK_PUBLISHABLE_KEY -e CLERK_JWT_KEY -e CLERK_WEBHOOK_SECRET -e DATABASE_URL >> .env.production
+        - echo "=== .env.production contents ==="
+        - cat .env.production || echo "No .env.production file created"
+        - echo "=== Generating Prisma Client ==="
+        - npx prisma generate
+        - echo "=== Building Application ==="
         - yarn build
   artifacts:
     baseDirectory: .next
