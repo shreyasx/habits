@@ -212,7 +212,7 @@ export function HabitList() {
 						{/* Fixed column for progress ring with emoji and name */}
 						<div
 							className="flex-none pr-4"
-							style={{ width: `${longestHabitNameWidth + 35}px` }}
+							style={{ width: `${longestHabitNameWidth + 57.5}px` }}
 						/>
 
 						{/* Scrollable date headers */}
@@ -246,7 +246,7 @@ export function HabitList() {
 								onDragLeave={handleDragLeave}
 								onDrop={e => handleDrop(e, index)}
 								onDragEnd={handleDragEnd}
-								className={`flex items-center gap-4 p-4 rounded-lg bg-gray-900 min-w-max relative transition-all duration-800 ease-in-out border my-0.5 ${
+								className={`flex items-center gap-2 p-4 rounded-lg bg-gray-900 min-w-max relative transition-all duration-800 ease-in-out border my-0.5 ${
 									hasStreak ? "border-green-500" : "border-gray-800"
 								} ${
 									isDragging

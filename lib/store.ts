@@ -197,9 +197,22 @@ export const useHabitsStore = create<HabitsState>()(
 					sortOrder: habit.sortOrder,
 				}));
 
-				updateHabitSortOrder(habitsWithSortOrder).catch(error => {
-					console.error("Failed to update habit sort order:", error);
-				});
+				// Start operation to show loading indicator
+				get().startOperation();
+
+				updateHabitSortOrder(habitsWithSortOrder)
+					.then(() => {
+						// Operation completed successfully
+					})
+					.catch(error => {
+						console.error("Failed to update habit sort order:", error);
+						// Optionally set error state here if needed
+						get().setError(true);
+					})
+					.finally(() => {
+						// Always finish operation to hide loading indicator
+						get().finishOperation();
+					});
 			},
 
 			setHasUserReordered: hasReordered =>
