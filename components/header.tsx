@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, CloudUpload, CloudCheck, CloudAlert } from "lucide-react";
+import {
+	Plus,
+	CloudUpload,
+	CloudCheck,
+	CloudAlert,
+	RefreshCw,
+} from "lucide-react";
 import { HabitModal } from "./habit-modal";
 import { useHabitsStore } from "@/lib/store";
 import { UserButton, useUser } from "@clerk/nextjs";
@@ -11,6 +17,20 @@ export function Header() {
 	const [isLoading, setIsLoading] = useState(false);
 	const { pendingOperations, hasError } = useHabitsStore();
 	const { user } = useUser();
+
+	const checkForUpdates = async () => {
+		if ("serviceWorker" in navigator) {
+			try {
+				const registration = await navigator.serviceWorker.getRegistration();
+				if (registration) {
+					registration.update();
+					console.log("Manual update check triggered");
+				}
+			} catch (error) {
+				console.error("Failed to check for updates:", error);
+			}
+		}
+	};
 
 	const showLoading = isLoading || pendingOperations > 0;
 
@@ -40,6 +60,13 @@ export function Header() {
 					<div className="flex items-center gap-4">
 						<button className="p-2 rounded-md hover:bg-gray-800 text-gray-400 hover:text-white">
 							{getCloudIcon()}
+						</button>
+						<button
+							onClick={checkForUpdates}
+							className="p-2 rounded-md hover:bg-gray-800 text-gray-400 hover:text-white"
+							title="Check for updates"
+						>
+							<RefreshCw className="h-5 w-5" />
 						</button>
 						<button
 							onClick={() => setIsModalOpen(true)}

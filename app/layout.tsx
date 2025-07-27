@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ClerkProvider } from "@clerk/nextjs";
+import { PWAUpdatePrompt } from "@/components/pwa-update-prompt";
 
 const geistSans = Geist({
 	variable: "--font-geist-sans",
@@ -58,23 +59,6 @@ export default function RootLayout({
 					<meta name="apple-mobile-web-app-title" content="Habits" />
 					<meta name="mobile-web-app-capable" content="yes" />
 					<meta name="theme-color" content="#000000" />
-					<script
-						dangerouslySetInnerHTML={{
-							__html: `
-                if ('serviceWorker' in navigator) {
-                  window.addEventListener('load', function() {
-                    navigator.serviceWorker.register('/sw.js')
-                      .then(function(registration) {
-                        console.log('SW registered: ', registration);
-                      })
-                      .catch(function(registrationError) {
-                        console.log('SW registration failed: ', registrationError);
-                      });
-                  });
-                }
-              `,
-						}}
-					/>
 				</head>
 				<body
 					className={`${geistSans.variable} ${geistMono.variable} antialiased`}
@@ -86,6 +70,7 @@ export default function RootLayout({
 						disableTransitionOnChange
 					>
 						{children}
+						<PWAUpdatePrompt />
 					</ThemeProvider>
 				</body>
 			</html>
