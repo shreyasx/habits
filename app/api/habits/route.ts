@@ -1,11 +1,18 @@
 import { PrismaClient } from "@prisma/client";
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 
 const prisma = new PrismaClient();
 
 export async function GET() {
 	try {
+		const { userId } = await auth();
+		if (!userId) {
+			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+		}
+
 		const habits = await prisma.habit.findMany({
+			where: { userId },
 			orderBy: { sortOrder: "asc" },
 			include: {
 				completions: true,
@@ -24,11 +31,17 @@ export async function GET() {
 
 export async function POST(request: Request) {
 	try {
+		const { userId } = await auth();
+		if (!userId) {
+			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+		}
+
 		const body = await request.json();
 		const { name, emoji, color } = body;
 
 		// Get the highest sortOrder to place new habit at the end
 		const maxSortOrder = await prisma.habit.findFirst({
+			where: { userId },
 			orderBy: { sortOrder: "desc" },
 			select: { sortOrder: true },
 		});
@@ -38,6 +51,7 @@ export async function POST(request: Request) {
 				name,
 				emoji,
 				color,
+				userId,
 				sortOrder: (maxSortOrder?.sortOrder ?? 0) + 1,
 			},
 			include: {
@@ -57,6 +71,11 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
 	try {
+		const { userId } = await auth();
+		if (!userId) {
+			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+		}
+
 		const { searchParams } = new URL(request.url);
 		const id = searchParams.get("id");
 
@@ -67,9 +86,9 @@ export async function DELETE(request: Request) {
 			);
 		}
 
-		// First check if the habit exists
+		// First check if the habit exists and belongs to the user
 		const existingHabit = await prisma.habit.findUnique({
-			where: { id },
+			where: { id, userId },
 			include: {
 				completions: true,
 			},
@@ -81,7 +100,7 @@ export async function DELETE(request: Request) {
 
 		// Delete the habit (completions will be automatically deleted due to cascade)
 		await prisma.habit.delete({
-			where: { id },
+			where: { id, userId },
 		});
 
 		return NextResponse.json({

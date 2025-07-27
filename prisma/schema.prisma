@@ -13,13 +13,23 @@ model Habit {
   emoji       String
   color       String
   sortOrder   Int
+  userId      String
   completions HabitCompletion[]
+
+  @@index([userId, sortOrder])
+  @@index([userId])
 }
 
 model HabitCompletion {
   id        String   @id @default(cuid())
   habit     Habit    @relation(fields: [habitId], references: [id], onDelete: Cascade)
   habitId   String
+  userId    String
   date      DateTime
   completed Boolean
+
+  @@index([habitId, userId, date])
+  @@index([habitId, date])
+  @@index([userId, date])
+  @@index([habitId, userId])
 }

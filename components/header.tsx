@@ -4,11 +4,13 @@ import { useState } from "react";
 import { Plus, CloudUpload, CloudCheck, CloudAlert } from "lucide-react";
 import { AddHabitModal } from "./add-habit-modal";
 import { useHabitsStore } from "@/lib/store";
+import { UserButton, useUser } from "@clerk/nextjs";
 
 export function Header() {
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
 	const { pendingOperations, hasError } = useHabitsStore();
+	const { user } = useUser();
 
 	const showLoading = isLoading || pendingOperations > 0;
 
@@ -45,6 +47,20 @@ export function Header() {
 						>
 							<Plus className="h-6 w-6" />
 						</button>
+						<div className="flex items-center gap-2">
+							{user && (
+								<span className="text-sm text-gray-300">
+									{user.firstName || user.emailAddresses[0]?.emailAddress}
+								</span>
+							)}
+							<UserButton 
+								appearance={{
+									elements: {
+										avatarBox: "w-8 h-8"
+									}
+								}}
+							/>
+						</div>
 					</div>
 				</div>
 			</header>
