@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Trash2, Check, X, Edit } from "lucide-react";
+import { Trash2, Check, X, Edit, GripVertical } from "lucide-react";
 import { Habit, HabitCompletion, useHabitsStore } from "@/lib/store";
 import { fetchHabits, deleteHabit, toggleCompletion } from "@/lib/api";
 import { format, subDays, startOfDay, addDays } from "date-fns";
@@ -11,20 +11,28 @@ export function HabitList() {
 	const {
 		habits,
 		isLoading,
+		draggedHabitId,
 		setHabits,
 		setLoading,
 		startOperation,
 		finishOperation,
 		deleteHabit: deleteHabitFromStore,
 		toggleCompletion: toggleCompletionInStore,
+		setDraggedHabitId,
+		reorderHabits,
+		loadHabitOrder,
 	} = useHabitsStore();
 
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [habitToEdit, setHabitToEdit] = useState<Habit | null>(null);
+	const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
-	// Load habits on mount
+	// Load habits and order on mount
 	useEffect(() => {
 		const loadHabits = async () => {
+			// Load saved order first
+			loadHabitOrder();
+
 			setLoading(true);
 			try {
 				const habitsData = await fetchHabits();
@@ -37,7 +45,7 @@ export function HabitList() {
 		};
 
 		loadHabits();
-	}, [setHabits, setLoading]);
+	}, [setHabits, setLoading, loadHabitOrder]);
 
 	const handleDeleteHabit = async (habitId: string) => {
 		// Optimistically remove from UI
@@ -86,6 +94,41 @@ export function HabitList() {
 	const handleCloseModal = () => {
 		setIsModalOpen(false);
 		setHabitToEdit(null);
+	};
+
+	// Drag and drop handlers
+	const handleDragStart = (e: React.DragEvent, habitId: string) => {
+		setDraggedHabitId(habitId);
+		e.dataTransfer.effectAllowed = "move";
+		e.dataTransfer.setData("text/html", habitId);
+	};
+
+	const handleDragOver = (e: React.DragEvent, index: number) => {
+		e.preventDefault();
+		e.dataTransfer.dropEffect = "move";
+		setDragOverIndex(index);
+	};
+
+	const handleDragLeave = () => {
+		setDragOverIndex(null);
+	};
+
+	const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+		e.preventDefault();
+		setDragOverIndex(null);
+		setDraggedHabitId(null);
+
+		if (draggedHabitId) {
+			const dragIndex = habits.findIndex(habit => habit.id === draggedHabitId);
+			if (dragIndex !== -1 && dragIndex !== dropIndex) {
+				reorderHabits(dragIndex, dropIndex);
+			}
+		}
+	};
+
+	const handleDragEnd = () => {
+		setDraggedHabitId(null);
+		setDragOverIndex(null);
 	};
 
 	// Generate dates for the last 14 days
@@ -187,26 +230,46 @@ export function HabitList() {
 					</div>
 
 					{/* Habit rows */}
-					{habits.map(habit => {
+					{habits.map((habit, index) => {
 						const completionPercentage = getWeeklyCompletionPercentage(habit);
 						const currentStreak = getCurrentStreak(habit);
 						const hasStreak = currentStreak >= 2;
+						const isDragging = draggedHabitId === habit.id;
+						const isDragOver = dragOverIndex === index;
 
 						return (
 							<div
 								key={habit.id}
+								draggable
+								onDragStart={e => handleDragStart(e, habit.id)}
+								onDragOver={e => handleDragOver(e, index)}
+								onDragLeave={handleDragLeave}
+								onDrop={e => handleDrop(e, index)}
+								onDragEnd={handleDragEnd}
 								className={`flex items-center gap-4 p-4 rounded-lg bg-gray-900 min-w-max relative transition-all duration-800 ease-in-out border my-0.5 ${
 									hasStreak ? "border-green-500" : "border-gray-800"
-								}`}
+								} ${
+									isDragging
+										? "opacity-50 scale-95 shadow-lg"
+										: isDragOver
+										? "border-blue-400 bg-blue-900/20"
+										: ""
+								} cursor-move`}
 							>
+								{/* Drag handle */}
+								<div className="flex-none mr-2 text-gray-500 hover:text-gray-300 transition-colors">
+									<GripVertical className="w-4 h-4" />
+								</div>
+
 								{/* Fire emoji for active streaks */}
 								<div
-									className={`absolute top-1.5 left-1 text-[10px] transition-all duration-800 ease-in-out ${
+									className={`absolute top-1.5 left-8 text-[10px] transition-all duration-800 ease-in-out ${
 										hasStreak ? "opacity-100" : "opacity-0"
 									}`}
 								>
 									🔥
 								</div>
+
 								{/* Column 1: Circular progress ring with emoji and name underneath */}
 								<div
 									className="flex-none text-center pr-4"
@@ -261,11 +324,11 @@ export function HabitList() {
 
 								{/* Columns 2+: Completion cells aligned with dates */}
 								<div className="flex gap-2">
-									{dates.map((date, index) => {
+									{dates.map((date, dateIndex) => {
 										const completed = isCompleted(habit, date);
 										return (
 											<button
-												key={index}
+												key={dateIndex}
 												onClick={() => handleToggleCompletion(habit.id, date)}
 												className="flex-none w-10 h-10 flex items-center justify-center rounded-md transition-colors focus:outline-none focus:bg-transparent hover:bg-transparent"
 											>

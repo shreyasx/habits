@@ -126,3 +126,19 @@ export async function updateHabit(
 		})),
 	};
 }
+
+export async function updateHabitSortOrder(
+	habits: { id: string; sortOrder: number }[]
+): Promise<void> {
+	const response = await fetch("/api/habits/sort-order", {
+		method: "PUT",
+		headers: {
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({ habits }),
+	});
+
+	if (!response.ok) {
+		throw new Error("Failed to update habit sort order");
+	}
+}
