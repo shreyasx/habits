@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Plus, CloudUpload, CloudCheck, CloudAlert } from "lucide-react";
-import { AddHabitModal } from "./add-habit-modal";
+import { HabitModal } from "./habit-modal";
 import { useHabitsStore } from "@/lib/store";
 import { UserButton, useUser } from "@clerk/nextjs";
 
@@ -53,18 +53,18 @@ export function Header() {
 									{user.firstName || user.emailAddresses[0]?.emailAddress}
 								</span>
 							)}
-							<UserButton 
+							<UserButton
 								appearance={{
 									elements: {
-										avatarBox: "w-8 h-8"
-									}
+										avatarBox: "w-8 h-8",
+									},
 								}}
 							/>
 						</div>
 					</div>
 				</div>
 			</header>
-			<AddHabitModal
+			<HabitModal
 				isOpen={isModalOpen}
 				onClose={() => setIsModalOpen(false)}
 				onLoadingChange={setIsLoading}

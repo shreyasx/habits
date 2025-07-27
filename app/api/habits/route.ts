@@ -115,3 +115,55 @@ export async function DELETE(request: Request) {
 		);
 	}
 }
+
+export async function PUT(request: Request) {
+	try {
+		const { userId } = await auth();
+		if (!userId) {
+			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+		}
+
+		const { searchParams } = new URL(request.url);
+		const id = searchParams.get("id");
+
+		if (!id) {
+			return NextResponse.json(
+				{ error: "Habit ID is required" },
+				{ status: 400 }
+			);
+		}
+
+		const body = await request.json();
+		const { name, emoji, color } = body;
+
+		// Check if the habit exists and belongs to the user
+		const existingHabit = await prisma.habit.findUnique({
+			where: { id, userId },
+		});
+
+		if (!existingHabit) {
+			return NextResponse.json({ error: "Habit not found" }, { status: 404 });
+		}
+
+		// Update the habit
+		const updatedHabit = await prisma.habit.update({
+			where: { id, userId },
+			data: {
+				name,
+				emoji,
+				color,
+			},
+			include: {
+				completions: true,
+			},
+		});
+
+		return NextResponse.json(updatedHabit);
+	} catch (error) {
+		console.error("Error updating habit:", error);
+		return NextResponse.json(
+			{ error: "Failed to update habit" },
+			{ status: 500 }
+		);
+	}
+}

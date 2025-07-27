@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
-import { Trash2, Check, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Trash2, Check, X, Edit } from "lucide-react";
 import { Habit, HabitCompletion, useHabitsStore } from "@/lib/store";
 import { fetchHabits, deleteHabit, toggleCompletion } from "@/lib/api";
 import { format, subDays, startOfDay, addDays } from "date-fns";
+import { HabitModal } from "./habit-modal";
 
 export function HabitList() {
 	const {
@@ -17,6 +18,9 @@ export function HabitList() {
 		deleteHabit: deleteHabitFromStore,
 		toggleCompletion: toggleCompletionInStore,
 	} = useHabitsStore();
+
+	const [isModalOpen, setIsModalOpen] = useState(false);
+	const [habitToEdit, setHabitToEdit] = useState<Habit | null>(null);
 
 	// Load habits on mount
 	useEffect(() => {
@@ -56,6 +60,11 @@ export function HabitList() {
 		}
 	};
 
+	const handleEditHabit = (habit: Habit) => {
+		setHabitToEdit(habit);
+		setIsModalOpen(true);
+	};
+
 	const handleToggleCompletion = async (habitId: string, date: Date) => {
 		// Optimistically toggle in UI
 		toggleCompletionInStore(habitId, date);
@@ -74,12 +83,17 @@ export function HabitList() {
 		}
 	};
 
-	// Generate dates from July 15, 2025 to today
-	const startDate = new Date(2025, 6, 15); // July 15, 2025 (month is 0-indexed)
+	const handleCloseModal = () => {
+		setIsModalOpen(false);
+		setHabitToEdit(null);
+	};
+
+	// Generate dates for the last 30 days
 	const today = new Date();
+	const thirtyDaysAgo = subDays(today, 29); // 29 days back to include today (30 days total)
 	const dates = useMemo(() => {
 		const dateArray = [];
-		let currentDate = startDate;
+		let currentDate = thirtyDaysAgo;
 		while (currentDate <= today) {
 			dateArray.push(startOfDay(currentDate));
 			currentDate = addDays(currentDate, 1);
@@ -147,138 +161,158 @@ export function HabitList() {
 	}
 
 	return (
-		<div className="space-y-1">
-			{/* Single scrollable container for dates and checkmarks */}
-			<div className="overflow-x-auto">
-				<div className="flex min-w-max mb-2">
-					{/* Fixed column for progress ring with emoji and name */}
-					<div
-						className="flex-none pr-4"
-						style={{ width: `${longestHabitNameWidth + 35}px` }}
-					/>
-
-					{/* Scrollable date headers */}
-					<div className="flex gap-2">
-						{dates.map((date, index) => (
-							<div
-								key={index}
-								className="flex-none w-10 text-center text-xs text-gray-500 uppercase"
-							>
-								<div>{format(date, "EEE")}</div>
-								<div>{format(date, "d")}</div>
-							</div>
-						))}
-					</div>
-				</div>
-
-				{/* Habit rows */}
-				{habits.map(habit => {
-					const completionPercentage = getWeeklyCompletionPercentage(habit);
-					const currentStreak = getCurrentStreak(habit);
-					const hasStreak = currentStreak >= 3;
-
-					return (
+		<>
+			<div className="space-y-1">
+				{/* Single scrollable container for dates and checkmarks */}
+				<div className="overflow-x-auto">
+					<div className="flex min-w-max mb-2">
+						{/* Fixed column for progress ring with emoji and name */}
 						<div
-							key={habit.id}
-							className={`flex items-center gap-4 p-4 rounded-lg bg-gray-900 min-w-max relative transition-all duration-800 ease-in-out border my-0.5 ${
-								hasStreak ? "border-green-500" : "border-gray-800"
-							}`}
-						>
-							{/* Fire emoji for active streaks */}
+							className="flex-none pr-4"
+							style={{ width: `${longestHabitNameWidth + 35}px` }}
+						/>
+
+						{/* Scrollable date headers */}
+						<div className="flex gap-2">
+							{dates.map((date, index) => (
+								<div
+									key={index}
+									className="flex-none w-10 text-center text-xs text-gray-500 uppercase"
+								>
+									<div>{format(date, "EEE")}</div>
+									<div>{format(date, "d")}</div>
+								</div>
+							))}
+						</div>
+					</div>
+
+					{/* Habit rows */}
+					{habits.map(habit => {
+						const completionPercentage = getWeeklyCompletionPercentage(habit);
+						const currentStreak = getCurrentStreak(habit);
+						const hasStreak = currentStreak >= 2;
+
+						return (
 							<div
-								className={`absolute top-1.5 left-1 text-[10px] transition-all duration-800 ease-in-out ${
-									hasStreak ? "opacity-100" : "opacity-0"
+								key={habit.id}
+								className={`flex items-center gap-4 p-4 rounded-lg bg-gray-900 min-w-max relative transition-all duration-800 ease-in-out border my-0.5 ${
+									hasStreak ? "border-green-500" : "border-gray-800"
 								}`}
 							>
-								🔥
-							</div>
-							{/* Column 1: Circular progress ring with emoji and name underneath */}
-							<div
-								className="flex-none text-center pr-4"
-								style={{
-									width: `${longestHabitNameWidth}px`,
-								}}
-							>
-								<div className="relative w-12 h-12 mx-auto mb-2">
-									<svg className="w-12 h-12 -rotate-90">
-										<circle
-											cx="24"
-											cy="24"
-											r="22"
-											stroke={hasStreak ? "#22c55e" : habit.color}
-											strokeWidth="2"
-											fill="none"
-											opacity="0.2"
-										/>
-										<circle
-											cx="24"
-											cy="24"
-											r="22"
-											stroke={hasStreak ? "#22c55e" : habit.color}
-											strokeWidth="2"
-											fill="none"
-											strokeDasharray={`${2 * Math.PI * 22}`}
-											strokeDashoffset={`${
-												2 * Math.PI * 22 * (1 - completionPercentage / 100)
-											}`}
-											strokeLinecap="round"
-											style={{
-												transition: "stroke-dashoffset 0.8s ease-in-out",
-											}}
-										/>
-									</svg>
-									<button
-										onClick={() =>
-											handleToggleCompletion(habit.id, startOfDay(new Date()))
-										}
-										className="absolute inset-0 flex items-center justify-center text-2xl cursor-pointer focus:outline-none focus:bg-transparent hover:bg-transparent"
+								{/* Fire emoji for active streaks */}
+								<div
+									className={`absolute top-1.5 left-1 text-[10px] transition-all duration-800 ease-in-out ${
+										hasStreak ? "opacity-100" : "opacity-0"
+									}`}
+								>
+									🔥
+								</div>
+								{/* Column 1: Circular progress ring with emoji and name underneath */}
+								<div
+									className="flex-none text-center pr-4"
+									style={{
+										width: `${longestHabitNameWidth}px`,
+									}}
+								>
+									<div className="relative w-12 h-12 mx-auto mb-2">
+										<svg className="w-12 h-12 -rotate-90">
+											<circle
+												cx="24"
+												cy="24"
+												r="22"
+												stroke={hasStreak ? "#22c55e" : habit.color}
+												strokeWidth="2"
+												fill="none"
+												opacity="0.2"
+											/>
+											<circle
+												cx="24"
+												cy="24"
+												r="22"
+												stroke={hasStreak ? "#22c55e" : habit.color}
+												strokeWidth="2"
+												fill="none"
+												strokeDasharray={`${2 * Math.PI * 22}`}
+												strokeDashoffset={`${
+													2 * Math.PI * 22 * (1 - completionPercentage / 100)
+												}`}
+												strokeLinecap="round"
+												style={{
+													transition: "stroke-dashoffset 0.8s ease-in-out",
+												}}
+											/>
+										</svg>
+										<button
+											onClick={() =>
+												handleToggleCompletion(habit.id, startOfDay(new Date()))
+											}
+											className="absolute inset-0 flex items-center justify-center text-2xl cursor-pointer focus:outline-none focus:bg-transparent hover:bg-transparent"
+										>
+											{habit.emoji}
+										</button>
+									</div>
+									<div
+										className="text-xs font-medium truncate"
+										style={{ color: hasStreak ? "#22c55e" : habit.color }}
 									>
-										{habit.emoji}
+										{habit.name}
+									</div>
+								</div>
+
+								{/* Columns 2+: Completion cells aligned with dates */}
+								<div className="flex gap-2">
+									{dates.map((date, index) => {
+										const completed = isCompleted(habit, date);
+										return (
+											<button
+												key={index}
+												onClick={() => handleToggleCompletion(habit.id, date)}
+												className="flex-none w-10 h-10 flex items-center justify-center rounded-md transition-colors focus:outline-none focus:bg-transparent hover:bg-transparent"
+											>
+												{completed ? (
+													<Check
+														className="w-5 h-5"
+														style={{
+															color: hasStreak ? "#22c55e" : habit.color,
+														}}
+													/>
+												) : (
+													<X className="w-5 h-5 text-gray-500" />
+												)}
+											</button>
+										);
+									})}
+								</div>
+
+								{/* Action buttons */}
+								<div className="flex gap-1">
+									<button
+										onClick={() => handleEditHabit(habit)}
+										disabled={false}
+										className="flex-none p-2 rounded-md hover:bg-blue-500/20 text-blue-400 hover:text-blue-300 disabled:opacity-50"
+									>
+										<Edit className="h-4 w-4" />
+									</button>
+									<button
+										onClick={() => handleDeleteHabit(habit.id)}
+										disabled={false}
+										className="flex-none p-2 rounded-md hover:bg-red-500/20 text-red-400 hover:text-red-300 disabled:opacity-50"
+									>
+										<Trash2 className="h-4 w-4" />
 									</button>
 								</div>
-								<div
-									className="text-xs font-medium truncate"
-									style={{ color: hasStreak ? "#22c55e" : habit.color }}
-								>
-									{habit.name}
-								</div>
 							</div>
-
-							{/* Columns 2+: Completion cells aligned with dates */}
-							<div className="flex gap-2">
-								{dates.map((date, index) => {
-									const completed = isCompleted(habit, date);
-									return (
-										<button
-											key={index}
-											onClick={() => handleToggleCompletion(habit.id, date)}
-											className="flex-none w-10 h-10 flex items-center justify-center rounded-md transition-colors focus:outline-none focus:bg-transparent hover:bg-transparent"
-										>
-											{completed ? (
-												<Check
-													className="w-5 h-5"
-													style={{ color: hasStreak ? "#22c55e" : habit.color }}
-												/>
-											) : (
-												<X className="w-5 h-5 text-gray-500" />
-											)}
-										</button>
-									);
-								})}
-							</div>
-
-							{/* Delete button */}
-							<button
-								onClick={() => handleDeleteHabit(habit.id)}
-								disabled={false}
-								className="flex-none p-2 rounded-md hover:bg-red-500/20 text-red-400 hover:text-red-300 disabled:opacity-50"
-							>
-								<Trash2 className="h-4 w-4" />
-							</button>
-						</div>
-					);
-				})}
+						);
+					})}
+				</div>
 			</div>
-		</div>
+
+			{/* Habit Modal */}
+			<HabitModal
+				isOpen={isModalOpen}
+				onClose={handleCloseModal}
+				habitToEdit={habitToEdit}
+			/>
+		</>
 	);
 }

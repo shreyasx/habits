@@ -63,13 +63,8 @@ export function HabitModal({
 	const [isVisible, setIsVisible] = useState(false);
 	const [isAnimating, setIsAnimating] = useState(false);
 
-	const {
-		addHabit,
-		updateHabit: updateHabitInStore,
-		updateHabitId,
-		startOperation,
-		finishOperation,
-	} = useHabitsStore();
+	const { addHabit, updateHabit: updateHabitInStore, updateHabitId, startOperation, finishOperation } =
+		useHabitsStore();
 
 	// Initialize form with habit data when editing
 	useEffect(() => {
@@ -285,13 +280,10 @@ export function HabitModal({
 							disabled={isLoading || !name.trim()}
 							className="flex-1 px-4 py-2 bg-primary text-black font-semibold rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 hover:scale-105 disabled:hover:scale-100"
 						>
-							{isLoading
-								? isEditing
-									? "Updating..."
-									: "Adding..."
-								: isEditing
-								? "Update Habit"
-								: "Add Habit"}
+							{isLoading 
+								? (isEditing ? "Updating..." : "Adding...") 
+								: (isEditing ? "Update Habit" : "Add Habit")
+							}
 						</button>
 					</div>
 				</form>

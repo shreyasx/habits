@@ -94,3 +94,35 @@ export async function toggleCompletion(
 		throw new Error(errorData.error || "Failed to toggle completion");
 	}
 }
+
+export async function updateHabit(
+	id: string,
+	data: {
+		name: string;
+		emoji: string;
+		color: string;
+	}
+): Promise<Habit> {
+	const response = await fetch(`/api/habits?id=${id}`, {
+		method: "PUT",
+		headers: {
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify(data),
+	});
+
+	if (!response.ok) {
+		throw new Error("Failed to update habit");
+	}
+
+	const habit: RawHabit = await response.json();
+
+	// Convert date strings back to Date objects in completions
+	return {
+		...habit,
+		completions: habit.completions.map((completion: RawHabitCompletion) => ({
+			...completion,
+			date: new Date(completion.date),
+		})),
+	};
+}
