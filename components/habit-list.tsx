@@ -246,7 +246,7 @@ export function HabitList() {
 								onDragLeave={handleDragLeave}
 								onDrop={e => handleDrop(e, index)}
 								onDragEnd={handleDragEnd}
-								className={`flex items-center gap-2 p-4 rounded-lg bg-gray-900 min-w-max relative transition-all duration-800 ease-in-out border my-0.5 ${
+								className={`flex items-center gap-2 p-4 py-2 rounded-lg bg-gray-900 min-w-max relative transition-all duration-800 ease-in-out border my-0.5 ${
 									hasStreak ? "border-green-500" : "border-gray-800"
 								} ${
 									isDragging
@@ -309,7 +309,7 @@ export function HabitList() {
 											onClick={() =>
 												handleToggleCompletion(habit.id, startOfDay(new Date()))
 											}
-											className="absolute inset-0 flex items-center justify-center text-2xl cursor-pointer focus:outline-none focus:bg-transparent hover:bg-transparent"
+											className="absolute inset-0 flex items-center justify-center text-xl cursor-pointer focus:outline-none focus:bg-transparent hover:bg-transparent"
 										>
 											{habit.emoji}
 										</button>
