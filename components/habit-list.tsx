@@ -6,6 +6,7 @@ import { Habit, HabitCompletion, useHabitsStore } from "@/lib/store";
 import { fetchHabits, deleteHabit, toggleCompletion } from "@/lib/api";
 import { format, subDays, startOfDay, addDays } from "date-fns";
 import { HabitModal } from "./habit-modal";
+import { getCurrentDate, calculateStreak, isStreakActive } from "@/lib/utils";
 
 export function HabitList() {
 	const {
@@ -131,8 +132,8 @@ export function HabitList() {
 		setDragOverIndex(null);
 	};
 
-	// Generate dates for the last 14 days
-	const today = new Date();
+	// Generate dates for the last 14 days using 4am day transition
+	const today = getCurrentDate();
 	const fourteenDaysAgo = subDays(today, 13); // 13 days back to include today (14 days total)
 	const dates = useMemo(() => {
 		const dateArray = [];
@@ -166,7 +167,7 @@ export function HabitList() {
 	// Calculate weekly completion percentage (last 7 days)
 	const getWeeklyCompletionPercentage = (habit: Habit) => {
 		const last7Days = Array.from({ length: 7 }, (_, i) => {
-			return startOfDay(subDays(new Date(), i));
+			return startOfDay(subDays(getCurrentDate(), i));
 		});
 		const completedDays = last7Days.filter(date =>
 			isCompleted(habit, date)
@@ -176,15 +177,7 @@ export function HabitList() {
 
 	// Calculate current streak (consecutive days completed)
 	const getCurrentStreak = (habit: Habit) => {
-		let streak = 0;
-		let currentDate = startOfDay(new Date());
-
-		while (isCompleted(habit, currentDate)) {
-			streak++;
-			currentDate = subDays(currentDate, 1);
-		}
-
-		return streak;
+		return calculateStreak(habit.completions, getCurrentDate());
 	};
 
 	if (isLoading) {
@@ -233,7 +226,10 @@ export function HabitList() {
 					{habits.map((habit, index) => {
 						const completionPercentage = getWeeklyCompletionPercentage(habit);
 						const currentStreak = getCurrentStreak(habit);
-						const hasStreak = currentStreak >= 2;
+						const hasStreak = isStreakActive(
+							habit.completions,
+							getCurrentDate()
+						);
 						const isDragging = draggedHabitId === habit.id;
 						const isDragOver = dragOverIndex === index;
 
@@ -307,7 +303,7 @@ export function HabitList() {
 										</svg>
 										<button
 											onClick={() =>
-												handleToggleCompletion(habit.id, startOfDay(new Date()))
+												handleToggleCompletion(habit.id, getCurrentDate())
 											}
 											className="absolute inset-0 flex items-center justify-center text-xl cursor-pointer focus:outline-none focus:bg-transparent hover:bg-transparent"
 										>
