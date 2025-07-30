@@ -106,13 +106,20 @@ export function calculateStreak(
 /**
  * Check if a streak should be considered active
  * A streak is active if the habit was completed yesterday and the day before
+ * OR if the habit was completed yesterday and today (2 consecutive days)
  */
 export function isStreakActive(
 	completions: HabitCompletion[],
 	currentDate: Date
 ): boolean {
+	const today = startOfDay(currentDate);
 	const yesterday = subDays(startOfDay(currentDate), 1);
 	const dayBeforeYesterday = subDays(startOfDay(currentDate), 2);
+
+	const isCompletedToday = completions?.some((completion: HabitCompletion) => {
+		const completionDate = startOfDay(new Date(completion.date));
+		return completionDate.getTime() === today.getTime() && completion.completed;
+	});
 
 	const isCompletedYesterday = completions?.some(
 		(completion: HabitCompletion) => {
@@ -133,5 +140,11 @@ export function isStreakActive(
 		}
 	);
 
-	return isCompletedYesterday && isCompletedDayBefore;
+	// Streak is active if:
+	// 1. Yesterday AND day before yesterday were completed (existing logic)
+	// 2. OR today AND yesterday were completed (new case for 2 consecutive days)
+	return (
+		(isCompletedYesterday && isCompletedDayBefore) ||
+		(isCompletedToday && isCompletedYesterday)
+	);
 }
