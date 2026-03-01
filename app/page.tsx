@@ -6,6 +6,7 @@ import { HabitList } from "@/components/habit-list";
 import { Sidebar } from "@/components/sidebar";
 import { Scorecard } from "@/components/scorecard";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
+import { NotificationScheduler } from "@/components/notification-scheduler";
 import { DailyQuote } from "@/components/daily-quote";
 import { useUser, SignInButton, SignUpButton } from "@clerk/nextjs";
 import { useHabitsStore } from "@/lib/store";
@@ -83,6 +84,7 @@ export default function Home() {
 				</main>
 			)}
 			<PWAInstallPrompt />
+			<NotificationScheduler />
 		</div>
 	);
 }

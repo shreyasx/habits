@@ -1,16 +1,43 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import { Plus, BarChart3, X } from "lucide-react";
+import { Plus, BarChart3, Bell, BellOff, X } from "lucide-react";
 import { useHabitsStore } from "@/lib/store";
+import {
+	isNotificationSupported,
+	isNotificationEnabled,
+	requestPermissionAndEnable,
+	disableNotifications,
+	getNotificationPermission,
+} from "@/lib/notifications";
 
 export function Sidebar() {
 	const { isSidebarOpen, setSidebarOpen, setCurrentPage, setCreateModalOpen } =
 		useHabitsStore();
 	const [isAnimating, setIsAnimating] = useState(false);
 	const [isVisible, setIsVisible] = useState(false);
+	const [notificationsOn, setNotificationsOn] = useState(false);
+	const [notifSupported, setNotifSupported] = useState(false);
 	const touchStartX = useRef(0);
 	const isDragging = useRef(false);
+
+	// Sync notification state on mount
+	useEffect(() => {
+		setNotifSupported(isNotificationSupported());
+		setNotificationsOn(
+			isNotificationEnabled() && getNotificationPermission() === "granted"
+		);
+	}, []);
+
+	const handleNotificationToggle = async () => {
+		if (notificationsOn) {
+			disableNotifications();
+			setNotificationsOn(false);
+		} else {
+			const granted = await requestPermissionAndEnable();
+			setNotificationsOn(granted);
+		}
+	};
 
 	useEffect(() => {
 		if (isSidebarOpen) {
@@ -111,6 +138,23 @@ export function Sidebar() {
 						<BarChart3 className="h-5 w-5" />
 						<span className="text-sm font-medium">Scorecard</span>
 					</button>
+					{notifSupported && (
+						<button
+							onClick={handleNotificationToggle}
+							className="flex items-center gap-3 w-full px-4 py-3.5 rounded-xl hover:bg-gray-800/60 text-gray-300 hover:text-white transition-colors"
+						>
+							{notificationsOn ? (
+								<Bell className="h-5 w-5 text-blue-400" />
+							) : (
+								<BellOff className="h-5 w-5" />
+							)}
+							<span className="text-sm font-medium">
+								{notificationsOn
+									? "Daily Reminder On"
+									: "Enable Daily Reminder"}
+							</span>
+						</button>
+					)}
 				</nav>
 			</div>
 		</div>
