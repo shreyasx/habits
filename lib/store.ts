@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { updateHabitSortOrder } from "./api";
+import { toDateString } from "./utils";
 
 export interface Habit {
 	id: string;
@@ -128,7 +129,7 @@ export const useHabitsStore = create<HabitsState>()(
 					habits: state.habits.map(habit => {
 						if (habit.id !== habitId) return habit;
 
-						const dateStr = date.toISOString().split("T")[0];
+						const dateStr = toDateString(date);
 						const existingCompletion = habit.completions.find(
 							comp => comp.date.toISOString().split("T")[0] === dateStr
 						);
@@ -144,11 +145,12 @@ export const useHabitsStore = create<HabitsState>()(
 								),
 							};
 						} else {
-							// Add new completion
+							// Add new completion — store as UTC midnight so
+							// toISOString().split("T")[0] round-trips correctly
 							const newCompletion: HabitCompletion = {
 								id: `temp-${Date.now()}`,
 								habitId,
-								date,
+								date: new Date(dateStr + "T00:00:00.000Z"),
 								completed: true,
 							};
 							return {

@@ -1,8 +1,7 @@
-import { PrismaClient } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-
-const prisma = new PrismaClient();
+import { isSingleEmoji } from "@/lib/emoji";
+import { prisma } from "@/lib/db";
 
 export async function GET() {
 	try {
@@ -38,6 +37,13 @@ export async function POST(request: Request) {
 
 		const body = await request.json();
 		const { name, emoji, color } = body;
+
+		if (!isSingleEmoji(emoji)) {
+			return NextResponse.json(
+				{ error: "Invalid emoji" },
+				{ status: 400 }
+			);
+		}
 
 		// Get the highest sortOrder to place new habit at the end
 		const maxSortOrder = await prisma.habit.findFirst({
@@ -135,6 +141,13 @@ export async function PUT(request: Request) {
 
 		const body = await request.json();
 		const { name, emoji, color } = body;
+
+		if (!isSingleEmoji(emoji)) {
+			return NextResponse.json(
+				{ error: "Invalid emoji" },
+				{ status: 400 }
+			);
+		}
 
 		// Check if the habit exists and belongs to the user
 		const existingHabit = await prisma.habit.findUnique({

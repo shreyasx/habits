@@ -17,7 +17,6 @@ model Habit {
   completions HabitCompletion[]
 
   @@index([userId, sortOrder])
-  @@index([userId])
 }
 
 model HabitCompletion {
@@ -25,11 +24,17 @@ model HabitCompletion {
   habit     Habit    @relation(fields: [habitId], references: [id], onDelete: Cascade)
   habitId   String
   userId    String
-  date      DateTime
+  date      DateTime @db.Date
   completed Boolean
 
-  @@index([habitId, userId, date])
-  @@index([habitId, date])
-  @@index([userId, date])
-  @@index([habitId, userId])
+  @@unique([habitId, userId, date])
+}
+
+model Quote {
+  id        String   @id @default(cuid())
+  text      String
+  author    String
+  fetchedAt DateTime @default(now())
+
+  @@index([fetchedAt])
 }

@@ -1,4 +1,5 @@
 import { Habit } from "./store";
+import { toDateString } from "./utils";
 
 interface RawHabitCompletion {
 	id: string;
@@ -77,21 +78,22 @@ export async function deleteHabit(
 	return response.json();
 }
 
-export async function toggleCompletion(
+export async function setCompletion(
 	habitId: string,
-	date: Date
+	date: Date,
+	completed: boolean
 ): Promise<void> {
 	const response = await fetch("/api/habits/toggle-completion", {
 		method: "POST",
 		headers: {
 			"Content-Type": "application/json",
 		},
-		body: JSON.stringify({ habitId, date }),
+		body: JSON.stringify({ habitId, date: toDateString(date), completed }),
 	});
 
 	if (!response.ok) {
 		const errorData = await response.json().catch(() => ({}));
-		throw new Error(errorData.error || "Failed to toggle completion");
+		throw new Error(errorData.error || "Failed to set completion");
 	}
 }
 

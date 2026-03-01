@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
 import { auth } from "@clerk/nextjs/server";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
 	try {
@@ -11,18 +9,16 @@ export async function POST(request: NextRequest) {
 			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 		}
 
-		const { habitId, date } = await request.json();
+		const { habitId, date, completed } = await request.json();
 
-		if (!habitId || !date) {
+		if (!habitId || !date || typeof completed !== "boolean") {
 			return NextResponse.json(
-				{ error: "Missing habitId or date" },
+				{ error: "Missing habitId, date, or completed" },
 				{ status: 400 }
 			);
 		}
 
-		const dateObj = new Date(date);
-
-		// First check if the habit exists and belongs to the user
+		// Check if the habit exists and belongs to the user
 		const habit = await prisma.habit.findUnique({
 			where: { id: habitId, userId },
 		});
@@ -31,46 +27,26 @@ export async function POST(request: NextRequest) {
 			return NextResponse.json({ error: "Habit not found" }, { status: 404 });
 		}
 
-		const existingCompletion = await prisma.habitCompletion.findFirst({
-			where: {
-				habitId,
-				userId,
-				date: {
-					gte: new Date(
-						dateObj.getFullYear(),
-						dateObj.getMonth(),
-						dateObj.getDate()
-					),
-					lt: new Date(
-						dateObj.getFullYear(),
-						dateObj.getMonth(),
-						dateObj.getDate() + 1
-					),
-				},
-			},
-		});
+		// date arrives as "YYYY-MM-DD" string from the client — parse as UTC midnight
+		const dateOnly = new Date(date + "T00:00:00.000Z");
 
-		if (existingCompletion) {
-			await prisma.habitCompletion.update({
-				where: { id: existingCompletion.id },
-				data: { completed: !existingCompletion.completed },
+		if (completed) {
+			await prisma.habitCompletion.upsert({
+				where: { habitId_userId_date: { habitId, userId, date: dateOnly } },
+				update: { completed: true },
+				create: { habitId, userId, date: dateOnly, completed: true },
 			});
 		} else {
-			await prisma.habitCompletion.create({
-				data: {
-					habitId,
-					userId,
-					date: dateObj,
-					completed: true,
-				},
+			await prisma.habitCompletion.deleteMany({
+				where: { habitId, userId, date: dateOnly },
 			});
 		}
 
 		return NextResponse.json({ success: true });
 	} catch (error) {
-		console.error("Error toggling completion:", error);
+		console.error("Error setting completion:", error);
 		return NextResponse.json(
-			{ error: "Failed to toggle completion" },
+			{ error: "Failed to set completion" },
 			{ status: 500 }
 		);
 	}

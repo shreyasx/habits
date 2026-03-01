@@ -4,40 +4,16 @@ import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { useHabitsStore, Habit } from "@/lib/store";
 import { createHabit, updateHabit } from "@/lib/api";
+import { isSingleEmoji } from "@/lib/emoji";
+import { scheduleToggleSync, safeRefetch } from "@/lib/sync";
 
 interface HabitModalProps {
 	isOpen: boolean;
 	onClose: () => void;
-	onLoadingChange?: (loading: boolean) => void;
-	habitToEdit?: Habit | null; // New prop for editing
+	habitToEdit?: Habit | null;
 }
 
-const EMOJIS = [
-	"🏃‍♂️",
-	"💧",
-	"📚",
-	"🧘‍♀️",
-	"🥗",
-	"💤",
-	"🏋️‍♂️",
-	"🧠",
-	"🎯",
-	"🌟",
-	"💪",
-	"🎨",
-	"🎵",
-	"🌱",
-	"☕",
-	"🚶‍♂️",
-	"🏮",
-	"🤸‍♂️",
-	"🦷",
-	"🌞",
-	"🧘‍♂️",
-	"🏊‍♀️",
-	"📝",
-	"🎪",
-];
+const DEFAULT_EMOJI = "🎯";
 
 const COLORS = [
 	"#ef4444", // red
@@ -53,29 +29,39 @@ const COLORS = [
 export function HabitModal({
 	isOpen,
 	onClose,
-	onLoadingChange,
 	habitToEdit,
 }: HabitModalProps) {
 	const [name, setName] = useState("");
-	const [selectedEmoji, setSelectedEmoji] = useState(EMOJIS[0]);
+	const [selectedEmoji, setSelectedEmoji] = useState(DEFAULT_EMOJI);
+	const [emojiInput, setEmojiInput] = useState(DEFAULT_EMOJI);
 	const [selectedColor, setSelectedColor] = useState(COLORS[0]);
-	const [isLoading, setIsLoading] = useState(false);
 	const [isVisible, setIsVisible] = useState(false);
 	const [isAnimating, setIsAnimating] = useState(false);
 
-	const { addHabit, updateHabit: updateHabitInStore, updateHabitId, startOperation, finishOperation } =
-		useHabitsStore();
+	const {
+		addHabit,
+		updateHabit: updateHabitInStore,
+		updateHabitId,
+		deleteHabit: deleteHabitFromStore,
+		startOperation,
+		finishOperation,
+		setError,
+	} = useHabitsStore();
+
+	const isEmojiValid = isSingleEmoji(emojiInput);
 
 	// Initialize form with habit data when editing
 	useEffect(() => {
 		if (habitToEdit) {
 			setName(habitToEdit.name);
 			setSelectedEmoji(habitToEdit.emoji);
+			setEmojiInput(habitToEdit.emoji);
 			setSelectedColor(habitToEdit.color);
 		} else {
 			// Reset form for adding new habit
 			setName("");
-			setSelectedEmoji(EMOJIS[0]);
+			setSelectedEmoji(DEFAULT_EMOJI);
+			setEmojiInput(DEFAULT_EMOJI);
 			setSelectedColor(COLORS[0]);
 		}
 	}, [habitToEdit]);
@@ -100,79 +86,89 @@ export function HabitModal({
 		}
 	}, [isOpen]);
 
+	const resetForm = () => {
+		setName("");
+		setSelectedEmoji(DEFAULT_EMOJI);
+		setEmojiInput(DEFAULT_EMOJI);
+		setSelectedColor(COLORS[0]);
+	};
+
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!name.trim()) return;
 
-		setIsLoading(true);
-		onLoadingChange?.(true);
-		startOperation();
+		const trimmedName = name.trim();
 
-		try {
-			if (habitToEdit) {
-				// Editing existing habit
-				// Optimistically update UI
-				updateHabitInStore(habitToEdit.id, {
-					name: name.trim(),
-					emoji: selectedEmoji,
-					color: selectedColor,
-				});
+		if (habitToEdit) {
+			// --- Edit flow ---
+			updateHabitInStore(habitToEdit.id, {
+				name: trimmedName,
+				emoji: selectedEmoji,
+				color: selectedColor,
+			});
+			resetForm();
+			onClose();
 
-				// Reset form and close modal immediately
-				setName("");
-				setSelectedEmoji(EMOJIS[0]);
-				setSelectedColor(COLORS[0]);
-				onClose();
-
-				// Perform background update
+			// Background sync — pending operation tracks the full lifecycle
+			startOperation();
+			try {
 				await updateHabit(habitToEdit.id, {
-					name: name.trim(),
+					name: trimmedName,
 					emoji: selectedEmoji,
 					color: selectedColor,
 				});
-			} else {
-				// Creating new habit
-				// Create temporary habit for instant UI update
-				const tempHabit = {
-					id: `temp-${Date.now()}`,
-					name: name.trim(),
-					emoji: selectedEmoji,
-					color: selectedColor,
-					sortOrder: Date.now(),
-					completions: [],
-				};
-
-				// Optimistically add to UI
-				addHabit(tempHabit);
-
-				// Reset form and close modal immediately
-				setName("");
-				setSelectedEmoji(EMOJIS[0]);
-				setSelectedColor(COLORS[0]);
-				onClose();
-
-				// Perform background creation and update ID when complete
-				createHabit({
-					name: name.trim(),
-					emoji: selectedEmoji,
-					color: selectedColor,
-				})
-					.then(createdHabit => {
-						// Update the temporary ID with the real database ID
-						updateHabitId(tempHabit.id, createdHabit.id);
-					})
-					.catch(error => {
-						console.error("Error creating habit:", error);
-						// You could implement error handling here, like showing a toast notification
-						// or reverting the optimistic update
-					});
+				setError(false);
+			} catch (error) {
+				console.error("Error updating habit:", error);
+				setError(true);
+				await safeRefetch();
+			} finally {
+				finishOperation();
 			}
-		} catch (error) {
-			console.error("Error in form submission:", error);
-		} finally {
-			setIsLoading(false);
-			onLoadingChange?.(false);
-			finishOperation();
+		} else {
+			// --- Create flow ---
+			const tempHabit = {
+				id: `temp-${Date.now()}`,
+				name: trimmedName,
+				emoji: selectedEmoji,
+				color: selectedColor,
+				sortOrder: Date.now(),
+				completions: [],
+			};
+
+			addHabit(tempHabit);
+			resetForm();
+			onClose();
+
+			// Background sync — await the full create before finishing
+			startOperation();
+			try {
+				const createdHabit = await createHabit({
+					name: trimmedName,
+					emoji: selectedEmoji,
+					color: selectedColor,
+				});
+				updateHabitId(tempHabit.id, createdHabit.id);
+				setError(false);
+
+				// Sync any completions the user toggled while the habit had a temp ID
+				const currentHabit = useHabitsStore
+					.getState()
+					.habits.find(h => h.id === createdHabit.id);
+				if (currentHabit) {
+					for (const comp of currentHabit.completions) {
+						if (comp.id.startsWith("temp-")) {
+							scheduleToggleSync(createdHabit.id, comp.date);
+						}
+					}
+				}
+			} catch (error) {
+				console.error("Error creating habit:", error);
+				setError(true);
+				deleteHabitFromStore(tempHabit.id);
+			} finally {
+				finishOperation();
+			}
 		}
 	};
 
@@ -228,21 +224,34 @@ export function HabitModal({
 						<label className="block text-sm font-medium text-gray-300 mb-2">
 							Emoji
 						</label>
-						<div className="grid grid-cols-8 gap-2">
-							{EMOJIS.map(emoji => (
-								<button
-									key={emoji}
-									type="button"
-									onClick={() => setSelectedEmoji(emoji)}
-									className={`p-2 rounded-md text-xl transition-all duration-150 flex items-center justify-center ${
-										selectedEmoji === emoji
-											? "bg-primary ring-2 ring-primary scale-105"
-											: "hover:bg-secondary hover:scale-105"
+						<div className="flex items-center gap-3">
+							<span className="text-4xl w-12 h-12 flex items-center justify-center bg-secondary rounded-md shrink-0">
+								{isEmojiValid ? selectedEmoji : "❓"}
+							</span>
+							<div className="flex-1">
+								<input
+									type="text"
+									value={emojiInput}
+									onChange={e => {
+										const val = e.target.value;
+										setEmojiInput(val);
+										if (isSingleEmoji(val)) {
+											setSelectedEmoji(val);
+										}
+									}}
+									className={`w-full px-3 py-2 bg-secondary border rounded-md text-white text-lg placeholder-gray-400 focus:outline-none focus:ring-2 transition-all duration-150 ${
+										emojiInput && !isEmojiValid
+											? "border-red-500 focus:ring-red-500"
+											: "border-border focus:ring-primary"
 									}`}
-								>
-									{emoji}
-								</button>
-							))}
+									placeholder="Type or paste an emoji"
+								/>
+								{emojiInput && !isEmojiValid && (
+									<p className="text-red-400 text-xs mt-1">
+										Please enter a single emoji
+									</p>
+								)}
+							</div>
 						</div>
 					</div>
 
@@ -277,13 +286,10 @@ export function HabitModal({
 						</button>
 						<button
 							type="submit"
-							disabled={isLoading || !name.trim()}
+							disabled={!name.trim() || !isEmojiValid}
 							className="flex-1 px-4 py-2 bg-primary text-black font-semibold rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 hover:scale-105 disabled:hover:scale-100"
 						>
-							{isLoading 
-								? (isEditing ? "Updating..." : "Adding...") 
-								: (isEditing ? "Update Habit" : "Add Habit")
-							}
+							{isEditing ? "Update Habit" : "Add Habit"}
 						</button>
 					</div>
 				</form>

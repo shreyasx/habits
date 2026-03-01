@@ -3,6 +3,7 @@
 import { Header } from "@/components/header";
 import { HabitList } from "@/components/habit-list";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
+import { DailyQuote } from "@/components/daily-quote";
 import { useUser, SignInButton, SignUpButton } from "@clerk/nextjs";
 
 export default function Home() {
@@ -51,11 +52,12 @@ export default function Home() {
 
 	// Show the main app if authenticated
 	return (
-		<div className="min-h-screen bg-black text-white">
+		<div className="min-h-screen bg-black text-white flex flex-col">
 			<Header />
-			<main className="px-4 pt-20 pb-4 pr-0">
+			<main className="px-4 pt-20 pb-4 pr-0 flex-1">
 				<HabitList />
 			</main>
+			<DailyQuote />
 			<PWAInstallPrompt />
 		</div>
 	);

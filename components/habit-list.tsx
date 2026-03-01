@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Trash2, Check, X, Edit, GripVertical } from "lucide-react";
+import { Trash2, Edit, GripVertical } from "lucide-react";
 import { Habit, HabitCompletion, useHabitsStore } from "@/lib/store";
-import { fetchHabits, deleteHabit, toggleCompletion } from "@/lib/api";
+import { fetchHabits, deleteHabit } from "@/lib/api";
+import { scheduleToggleSync, cancelPendingTogglesForHabit, safeRefetch } from "@/lib/sync";
 import { format, subDays, startOfDay, addDays } from "date-fns";
 import { HabitModal } from "./habit-modal";
-import { getCurrentDate, calculateStreak, isStreakActive } from "@/lib/utils";
+import { getCurrentDate, calculateStreak, isStreakActive, toDateString } from "@/lib/utils";
 
 export function HabitList() {
 	const {
@@ -31,9 +32,7 @@ export function HabitList() {
 	// Load habits and order on mount
 	useEffect(() => {
 		const loadHabits = async () => {
-			// Load saved order first
 			loadHabitOrder();
-
 			setLoading(true);
 			try {
 				const habitsData = await fetchHabits();
@@ -44,26 +43,20 @@ export function HabitList() {
 				setLoading(false);
 			}
 		};
-
 		loadHabits();
 	}, [setHabits, setLoading, loadHabitOrder]);
 
 	const handleDeleteHabit = async (habitId: string) => {
-		// Optimistically remove from UI
+		cancelPendingTogglesForHabit(habitId);
 		deleteHabitFromStore(habitId);
 		startOperation();
-
 		try {
-			// Perform background delete
-			const result = await deleteHabit(habitId);
-			console.log(result.message); // Log the success message with completion count
+			await deleteHabit(habitId);
+			useHabitsStore.getState().setError(false);
 		} catch (error) {
 			console.error("Error deleting habit:", error);
-			// Revert optimistic update on error
-			// You could implement a more sophisticated error handling here
-			// For now, we'll just reload the habits
-			const habitsData = await fetchHabits();
-			setHabits(habitsData);
+			useHabitsStore.getState().setError(true);
+			await safeRefetch();
 		} finally {
 			finishOperation();
 		}
@@ -74,22 +67,9 @@ export function HabitList() {
 		setIsModalOpen(true);
 	};
 
-	const handleToggleCompletion = async (habitId: string, date: Date) => {
-		// Optimistically toggle in UI
+	const handleToggleCompletion = (habitId: string, date: Date) => {
 		toggleCompletionInStore(habitId, date);
-		startOperation();
-
-		try {
-			// Perform background toggle
-			await toggleCompletion(habitId, date);
-		} catch (error) {
-			console.error("Error toggling completion:", error);
-			// Revert optimistic update on error
-			const habitsData = await fetchHabits();
-			setHabits(habitsData);
-		} finally {
-			finishOperation();
-		}
+		scheduleToggleSync(habitId, date);
 	};
 
 	const handleCloseModal = () => {
@@ -118,7 +98,6 @@ export function HabitList() {
 		e.preventDefault();
 		setDragOverIndex(null);
 		setDraggedHabitId(null);
-
 		if (draggedHabitId) {
 			const dragIndex = habits.findIndex(habit => habit.id === draggedHabitId);
 			if (dragIndex !== -1 && dragIndex !== dropIndex) {
@@ -134,7 +113,7 @@ export function HabitList() {
 
 	// Generate dates for the last 14 days using 4am day transition
 	const today = getCurrentDate();
-	const fourteenDaysAgo = subDays(today, 13); // 13 days back to include today (14 days total)
+	const fourteenDaysAgo = subDays(today, 13);
 	const dates = useMemo(() => {
 		const dateArray = [];
 		let currentDate = fourteenDaysAgo;
@@ -142,40 +121,26 @@ export function HabitList() {
 			dateArray.push(startOfDay(currentDate));
 			currentDate = addDays(currentDate, 1);
 		}
-		return dateArray.reverse(); // Reverse to show newest dates on the left
+		return dateArray.reverse();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
 	// Calculate the width needed for the longest habit name
 	const longestHabitNameWidth = useMemo(() => {
-		if (habits.length === 0) return 120; // Default width
+		if (habits.length === 0) return 120;
 		const maxLength = Math.max(...habits.map(habit => habit.name.length));
-		// Approximate width: ~6px per character + padding (smaller font)
 		return Math.max(80, maxLength * 6 + 20);
 	}, [habits]);
 
-	// Check if a habit was completed on a specific date
 	const isCompleted = (habit: Habit, date: Date) => {
-		return habit.completions?.some((completion: HabitCompletion) => {
-			const completionDate = startOfDay(new Date(completion.date));
-			return (
-				completionDate.getTime() === date.getTime() && completion.completed
-			);
-		});
+		const dateStr = toDateString(date);
+		return habit.completions?.some(
+			(completion: HabitCompletion) =>
+				completion.date.toISOString().split("T")[0] === dateStr &&
+				completion.completed
+		);
 	};
 
-	// Calculate weekly completion percentage (last 7 days)
-	const getWeeklyCompletionPercentage = (habit: Habit) => {
-		const last7Days = Array.from({ length: 7 }, (_, i) => {
-			return startOfDay(subDays(getCurrentDate(), i));
-		});
-		const completedDays = last7Days.filter(date =>
-			isCompleted(habit, date)
-		).length;
-		return (completedDays / 7) * 100;
-	};
-
-	// Calculate current streak (consecutive days completed)
 	const getCurrentStreak = (habit: Habit) => {
 		return calculateStreak(habit.completions, getCurrentDate());
 	};
@@ -183,48 +148,65 @@ export function HabitList() {
 	if (isLoading) {
 		return (
 			<div className="text-center py-8">
-				<div className="inline-block w-6 h-6 border-2 border-gray-600 border-t-gray-400 rounded-full animate-spin"></div>
+				<div className="inline-block w-5 h-5 border-2 border-gray-700 border-t-gray-400 rounded-full animate-spin"></div>
 			</div>
 		);
 	}
 
 	if (habits.length === 0) {
 		return (
-			<div className="text-center py-12 text-gray-400">
-				{`No habits yet. Click the + button to add your first habit!`}
+			<div className="text-center py-12 text-gray-500 text-sm">
+				{`No habits yet. Tap + to get started.`}
 			</div>
 		);
 	}
 
+	// Fixed column width: grip(18) + gap(8) + emoji(36) + gap(10) + name + padding(12)
+	const fixedColumnWidth = longestHabitNameWidth + 84;
+
 	return (
 		<>
-			<div className="space-y-1">
-				{/* Single scrollable container for dates and checkmarks */}
+			<div>
 				<div className="overflow-x-auto">
-					<div className="flex min-w-max mb-2">
-						{/* Fixed column for progress ring with emoji and name */}
+					{/* Date headers */}
+					<div className="flex min-w-max mb-1.5">
 						<div
-							className="flex-none pr-4"
-							style={{ width: `${longestHabitNameWidth + 57.5}px` }}
+							className="flex-none"
+							style={{ width: `${fixedColumnWidth}px` }}
 						/>
-
-						{/* Scrollable date headers */}
-						<div className="flex gap-2">
-							{dates.map((date, index) => (
-								<div
-									key={index}
-									className="flex-none w-10 text-center text-xs text-gray-500 uppercase"
-								>
-									<div>{format(date, "EEE")}</div>
-									<div>{format(date, "d")}</div>
-								</div>
-							))}
+						<div className="flex gap-[3px]">
+							{dates.map((date, index) => {
+								const dateIsToday =
+									date.getTime() === today.getTime();
+								return (
+									<div
+										key={index}
+										className={`flex-none w-9 text-center text-[10px] leading-tight ${
+											dateIsToday
+												? "text-gray-300"
+												: "text-gray-600"
+										}`}
+									>
+										<div className="uppercase tracking-wide">
+											{format(date, "EEE")}
+										</div>
+										<div
+											className={
+												dateIsToday
+													? "font-semibold"
+													: ""
+											}
+										>
+											{format(date, "d")}
+										</div>
+									</div>
+								);
+							})}
 						</div>
 					</div>
 
 					{/* Habit rows */}
 					{habits.map((habit, index) => {
-						const completionPercentage = getWeeklyCompletionPercentage(habit);
 						const currentStreak = getCurrentStreak(habit);
 						const hasStreak = isStreakActive(
 							habit.completions,
@@ -237,106 +219,112 @@ export function HabitList() {
 							<div
 								key={habit.id}
 								draggable
-								onDragStart={e => handleDragStart(e, habit.id)}
+								onDragStart={e =>
+									handleDragStart(e, habit.id)
+								}
 								onDragOver={e => handleDragOver(e, index)}
 								onDragLeave={handleDragLeave}
 								onDrop={e => handleDrop(e, index)}
 								onDragEnd={handleDragEnd}
-								className={`flex items-center gap-2 p-4 py-2 rounded-lg bg-gray-900 min-w-max relative transition-all duration-800 ease-in-out border my-0.5 ${
-									hasStreak ? "border-green-500" : "border-gray-800"
-								} ${
+								className={`flex items-center py-2.5 px-2 rounded-xl min-w-max transition-all duration-300 ${
 									isDragging
-										? "opacity-50 scale-95 shadow-lg"
+										? "opacity-40 scale-[0.98]"
 										: isDragOver
-										? "border-blue-400 bg-blue-900/20"
+										? "bg-gray-800/40"
 										: ""
 								} cursor-move`}
+								style={{
+									background:
+										hasStreak && !isDragging
+											? `linear-gradient(90deg, ${habit.color}0A 0%, transparent 50%)`
+											: undefined,
+								}}
 							>
 								{/* Drag handle */}
-								<div className="flex-none mr-2 text-gray-500 hover:text-gray-300 transition-colors">
-									<GripVertical className="w-4 h-4" />
+								<div className="flex-none mr-2 text-gray-700">
+									<GripVertical className="w-[14px] h-[14px]" />
 								</div>
 
-								{/* Fire emoji for active streaks */}
+								{/* Emoji + Name */}
 								<div
-									className={`absolute top-1.5 left-8 text-[10px] transition-all duration-800 ease-in-out ${
-										hasStreak ? "opacity-100" : "opacity-0"
-									}`}
-								>
-									🔥
-								</div>
-
-								{/* Column 1: Circular progress ring with emoji and name underneath */}
-								<div
-									className="flex-none text-center pr-4"
+									className="flex items-center gap-2.5 flex-none pr-3"
 									style={{
-										width: `${longestHabitNameWidth}px`,
+										width: `${longestHabitNameWidth + 56}px`,
 									}}
 								>
-									<div className="relative w-12 h-12 mx-auto mb-2">
-										<svg className="w-12 h-12 -rotate-90">
-											<circle
-												cx="24"
-												cy="24"
-												r="22"
-												stroke={hasStreak ? "#22c55e" : habit.color}
-												strokeWidth="2"
-												fill="none"
-												opacity="0.2"
-											/>
-											<circle
-												cx="24"
-												cy="24"
-												r="22"
-												stroke={hasStreak ? "#22c55e" : habit.color}
-												strokeWidth="2"
-												fill="none"
-												strokeDasharray={`${2 * Math.PI * 22}`}
-												strokeDashoffset={`${
-													2 * Math.PI * 22 * (1 - completionPercentage / 100)
-												}`}
-												strokeLinecap="round"
-												style={{
-													transition: "stroke-dashoffset 0.8s ease-in-out",
-												}}
-											/>
-										</svg>
+									<div className="relative flex-none">
 										<button
 											onClick={() =>
-												handleToggleCompletion(habit.id, getCurrentDate())
+												handleToggleCompletion(
+													habit.id,
+													getCurrentDate()
+												)
 											}
-											className="absolute inset-0 flex items-center justify-center text-xl cursor-pointer focus:outline-none focus:bg-transparent hover:bg-transparent"
+											className="w-9 h-9 rounded-lg flex items-center justify-center text-[17px] transition-all duration-300 focus:outline-none active:scale-90"
+											style={{
+												background: `${habit.color}15`,
+												boxShadow: hasStreak
+													? `0 0 18px ${habit.color}30, 0 0 4px ${habit.color}20`
+													: "none",
+											}}
 										>
 											{habit.emoji}
 										</button>
+										{hasStreak && currentStreak > 1 && (
+											<span
+												className="absolute -bottom-1 -right-1.5 text-[8px] font-bold leading-none px-[5px] py-[2px] rounded-full min-w-[15px] text-center"
+												style={{
+													background: habit.color,
+													color: "#000",
+												}}
+											>
+												{currentStreak}
+											</span>
+										)}
 									</div>
-									<div
-										className="text-xs font-medium truncate"
-										style={{ color: hasStreak ? "#22c55e" : habit.color }}
-									>
+									<span className="text-[13px] font-medium text-gray-400 truncate">
 										{habit.name}
-									</div>
+									</span>
 								</div>
 
-								{/* Columns 2+: Completion cells aligned with dates */}
-								<div className="flex gap-2">
+								{/* Completion grid */}
+								<div className="flex gap-[3px]">
 									{dates.map((date, dateIndex) => {
-										const completed = isCompleted(habit, date);
+										const completed = isCompleted(
+											habit,
+											date
+										);
+										const dateIsToday =
+											date.getTime() ===
+											today.getTime();
 										return (
 											<button
 												key={dateIndex}
-												onClick={() => handleToggleCompletion(habit.id, date)}
-												className="flex-none w-10 h-10 flex items-center justify-center rounded-md transition-colors focus:outline-none focus:bg-transparent hover:bg-transparent"
+												onClick={() =>
+													handleToggleCompletion(
+														habit.id,
+														date
+													)
+												}
+												className="flex-none w-9 h-9 flex items-center justify-center transition-all duration-150 focus:outline-none active:scale-90"
 											>
 												{completed ? (
-													<Check
-														className="w-5 h-5"
+													<div
+														className="w-[14px] h-[14px] rounded-[4px] transition-all duration-200"
 														style={{
-															color: hasStreak ? "#22c55e" : habit.color,
+															background:
+																habit.color,
+															boxShadow: `0 0 6px ${habit.color}40`,
 														}}
 													/>
 												) : (
-													<X className="w-5 h-5 text-gray-500" />
+													<div
+														className={`w-[14px] h-[14px] rounded-[4px] transition-all duration-200 ${
+															dateIsToday
+																? "bg-gray-700/80"
+																: "bg-gray-800/40"
+														}`}
+													/>
 												)}
 											</button>
 										);
@@ -344,20 +332,22 @@ export function HabitList() {
 								</div>
 
 								{/* Action buttons */}
-								<div className="flex gap-1">
+								<div className="flex gap-0.5 ml-1">
 									<button
-										onClick={() => handleEditHabit(habit)}
-										disabled={false}
-										className="flex-none p-2 rounded-md hover:bg-blue-500/20 text-blue-400 hover:text-blue-300 disabled:opacity-50"
+										onClick={() =>
+											handleEditHabit(habit)
+										}
+										className="flex-none p-1.5 rounded-md text-gray-700 hover:text-gray-400 transition-colors focus:outline-none"
 									>
-										<Edit className="h-4 w-4" />
+										<Edit className="h-3.5 w-3.5" />
 									</button>
 									<button
-										onClick={() => handleDeleteHabit(habit.id)}
-										disabled={false}
-										className="flex-none p-2 rounded-md hover:bg-red-500/20 text-red-400 hover:text-red-300 disabled:opacity-50"
+										onClick={() =>
+											handleDeleteHabit(habit.id)
+										}
+										className="flex-none p-1.5 rounded-md text-gray-700 hover:text-red-400 transition-colors focus:outline-none"
 									>
-										<Trash2 className="h-4 w-4" />
+										<Trash2 className="h-3.5 w-3.5" />
 									</button>
 								</div>
 							</div>
@@ -366,7 +356,6 @@ export function HabitList() {
 				</div>
 			</div>
 
-			{/* Habit Modal */}
 			<HabitModal
 				isOpen={isModalOpen}
 				onClose={handleCloseModal}
