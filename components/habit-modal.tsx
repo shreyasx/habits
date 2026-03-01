@@ -16,6 +16,7 @@ interface HabitModalProps {
 const DEFAULT_EMOJI = "🎯";
 
 const COLORS = [
+	// Row 1 — original
 	"#ef4444", // red
 	"#f97316", // orange
 	"#eab308", // yellow
@@ -24,6 +25,24 @@ const COLORS = [
 	"#8b5cf6", // violet
 	"#ec4899", // pink
 	"#f59e0b", // amber
+	// Row 2 — greens, teals, deeper tones
+	"#22c55e", // green
+	"#10b981", // emerald
+	"#14b8a6", // teal
+	"#84cc16", // lime
+	"#6366f1", // indigo
+	"#d946ef", // fuchsia
+	"#f43f5e", // rose
+	"#a855f7", // purple
+	// Row 3 — softer/pastel-ish variants
+	"#4ade80", // light green
+	"#2dd4bf", // light teal
+	"#38bdf8", // sky
+	"#fb923c", // light orange
+	"#a3e635", // yellow-green
+	"#c084fc", // light purple
+	"#fb7185", // light rose
+	"#fbbf24", // gold
 ];
 
 export function HabitModal({

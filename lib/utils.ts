@@ -1,6 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { startOfDay, subDays, addHours } from "date-fns";
+import { startOfDay, subDays } from "date-fns";
 
 interface HabitCompletion {
 	id: string;

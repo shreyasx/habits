@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import {
-	Plus,
+	Menu,
+	ArrowLeft,
 	CloudUpload,
 	CloudCheck,
 	CloudAlert,
@@ -14,8 +14,15 @@ import { safeRefetch } from "@/lib/sync";
 import { UserButton, useUser } from "@clerk/nextjs";
 
 export function Header() {
-	const [isModalOpen, setIsModalOpen] = useState(false);
-	const { pendingOperations, hasError } = useHabitsStore();
+	const {
+		pendingOperations,
+		hasError,
+		currentPage,
+		setCurrentPage,
+		setSidebarOpen,
+		isCreateModalOpen,
+		setCreateModalOpen,
+	} = useHabitsStore();
 	const { user } = useUser();
 
 	const checkForUpdates = async () => {
@@ -40,7 +47,6 @@ export function Header() {
 
 	const showLoading = pendingOperations > 0;
 
-	// Determine which cloud icon to show
 	const getCloudIcon = () => {
 		if (hasError) {
 			return <CloudAlert className="h-5 w-5 text-red-400" />;
@@ -55,8 +61,25 @@ export function Header() {
 		<>
 			<header className="fixed top-0 left-0 right-0 bg-background border-b border-gray-800 z-10">
 				<div className="px-4 flex items-center justify-between h-16">
-					<div className="flex items-center gap-2">
-						<h1 className="text-2xl font-bold text-white">{`Habits`}</h1>
+					<div className="flex items-center gap-1">
+						{currentPage === "home" ? (
+							<button
+								onClick={() => setSidebarOpen(true)}
+								className="p-2 -ml-2 rounded-md hover:bg-gray-800 text-gray-400 hover:text-white transition-colors"
+							>
+								<Menu className="h-5 w-5" />
+							</button>
+						) : (
+							<button
+								onClick={() => setCurrentPage("home")}
+								className="p-2 -ml-2 rounded-md hover:bg-gray-800 text-gray-400 hover:text-white transition-colors"
+							>
+								<ArrowLeft className="h-5 w-5" />
+							</button>
+						)}
+						<h1 className="text-2xl font-bold text-white">
+							{currentPage === "home" ? "Habits" : "Scorecard"}
+						</h1>
 					</div>
 					<div className="flex items-center gap-4">
 						<button
@@ -75,12 +98,6 @@ export function Header() {
 								<RefreshCw className="h-5 w-5" />
 							</button>
 						)}
-						<button
-							onClick={() => setIsModalOpen(true)}
-							className="p-2 rounded-md hover:bg-gray-800 text-gray-400 hover:text-white"
-						>
-							<Plus className="h-6 w-6" />
-						</button>
 						<div className="flex items-center gap-2">
 							{user && (
 								<span className="text-sm text-gray-300">
@@ -99,8 +116,8 @@ export function Header() {
 				</div>
 			</header>
 			<HabitModal
-				isOpen={isModalOpen}
-				onClose={() => setIsModalOpen(false)}
+				isOpen={isCreateModalOpen}
+				onClose={() => setCreateModalOpen(false)}
 			/>
 		</>
 	);

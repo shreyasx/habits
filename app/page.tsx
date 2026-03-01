@@ -1,13 +1,28 @@
 "use client";
 
+import { useCallback } from "react";
 import { Header } from "@/components/header";
 import { HabitList } from "@/components/habit-list";
+import { Sidebar } from "@/components/sidebar";
+import { Scorecard } from "@/components/scorecard";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 import { DailyQuote } from "@/components/daily-quote";
 import { useUser, SignInButton, SignUpButton } from "@clerk/nextjs";
+import { useHabitsStore } from "@/lib/store";
+import { useSwipeEdge } from "@/lib/use-swipe-edge";
 
 export default function Home() {
 	const { isSignedIn, isLoaded } = useUser();
+	const { currentPage, isSidebarOpen, setSidebarOpen } = useHabitsStore();
+
+	const handleSwipeOpen = useCallback(() => {
+		setSidebarOpen(true);
+	}, [setSidebarOpen]);
+
+	useSwipeEdge({
+		onSwipeRight: handleSwipeOpen,
+		enabled: !isSidebarOpen,
+	});
 
 	// Show loading state while Clerk is loading
 	if (!isLoaded) {
@@ -54,10 +69,19 @@ export default function Home() {
 	return (
 		<div className="min-h-screen bg-black text-white flex flex-col">
 			<Header />
-			<main className="px-4 pt-20 pb-4 pr-0 flex-1">
-				<HabitList />
-			</main>
-			<DailyQuote />
+			<Sidebar />
+			{currentPage === "home" ? (
+				<>
+					<main className="px-4 pt-20 pb-4 pr-0 flex-1">
+						<HabitList />
+					</main>
+					<DailyQuote />
+				</>
+			) : (
+				<main className="px-4 pt-20 pb-4 flex-1">
+					<Scorecard />
+				</main>
+			)}
 			<PWAInstallPrompt />
 		</div>
 	);
