@@ -26,6 +26,9 @@ interface HabitsState {
 	hasError: boolean;
 	draggedHabitId: string | null;
 	hasUserReordered: boolean;
+	currentPage: "home" | "scorecard";
+	isSidebarOpen: boolean;
+	isCreateModalOpen: boolean;
 
 	// Actions
 	setHabits: (habits: Habit[]) => void;
@@ -43,6 +46,9 @@ interface HabitsState {
 	setHasUserReordered: (hasReordered: boolean) => void;
 	loadHabitOrder: () => void;
 	saveHabitOrder: () => void;
+	setCurrentPage: (page: "home" | "scorecard") => void;
+	setSidebarOpen: (open: boolean) => void;
+	setCreateModalOpen: (open: boolean) => void;
 }
 
 const HABIT_ORDER_KEY = "habit-order";
@@ -56,6 +62,9 @@ export const useHabitsStore = create<HabitsState>()(
 			hasError: false,
 			draggedHabitId: null,
 			hasUserReordered: false,
+			currentPage: "home",
+			isSidebarOpen: false,
+			isCreateModalOpen: false,
 
 			setHabits: habits => {
 				const state = get();
@@ -244,6 +253,10 @@ export const useHabitsStore = create<HabitsState>()(
 					console.error("Failed to save habit order to localStorage:", error);
 				}
 			},
+
+			setCurrentPage: page => set({ currentPage: page }),
+			setSidebarOpen: open => set({ isSidebarOpen: open }),
+			setCreateModalOpen: open => set({ isCreateModalOpen: open }),
 		}),
 		{
 			name: "habits-store",

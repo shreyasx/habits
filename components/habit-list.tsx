@@ -282,9 +282,20 @@ export function HabitList() {
 											</span>
 										)}
 									</div>
-									<span className="text-[13px] font-medium text-gray-400 truncate">
+									<button
+										onClick={() =>
+											handleToggleCompletion(
+												habit.id,
+												getCurrentDate()
+											)
+										}
+										onDragStart={e =>
+											e.preventDefault()
+										}
+										className="text-[13px] font-medium text-gray-400 truncate text-left focus:outline-none active:scale-95 transition-transform"
+									>
 										{habit.name}
-									</span>
+									</button>
 								</div>
 
 								{/* Completion grid */}
